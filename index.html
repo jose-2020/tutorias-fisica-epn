@@ -1,3 +1,12 @@
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://cxqjjhmzeynerihybjsd.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4cWpqaG16ZXluZXJpaHlianNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NTcyMTgsImV4cCI6MjA3OTAzMzIxOH0.xiMMHudBafGBlRwFfKvcS_fsssNojSgHFSrFBfaSUFE";
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
+
+
+
 <!-- ============================================================ -->
 <!-- === VERSION A: DISEÑO EXACTO (CSS REESCRITO EN INLINE) ====== -->
 <!-- ============================================================ -->
@@ -69,12 +78,26 @@
     }
     const TIMES = genTimes();
 
-    function loadA() {
-        try {
-            return JSON.parse(localStorage.getItem(STORAGE_A)) || {};
-        } catch {
+    async function loadA() {
+        let { data, error } = await db
+            .from("reservas")
+            .select("*");
+
+        if (error) {
+            console.error(error);
             return {};
         }
+
+        // convertir la tabla en formato { "Lunes|08:00": [lista] }
+        let grouped = {};
+
+        data.forEach(r => {
+            const key = `${r.day}|${r.time}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(r);
+        });
+
+        return grouped;
     }
 
     function saveA(obj) {
@@ -164,11 +187,25 @@
                 return;
             }
 
-            list.push({
-                name,
-                email,
-                codigo
+            // Guardar en Supabase
+            let { error } = await db
+              .from("reservas")
+              .insert({
+                name: name,
+                email: email,
+                codigo: codigo,
+                day: day,
+                time: time
             });
+
+            if (error) {
+                msg.style.color = 'red';
+                msg.innerHTML = "Error al guardar la reserva.";
+                console.error(error);
+                return;
+            }
+            msg.style.color = 'green';
+            msg.innerHTML = "Reserva confirmada correctamente 👍";
             data[key] = list;
             saveA(data);
             msg.style.color = 'green';
