@@ -1,228 +1,284 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Reservas Tutorías - Supabase</title>
+<meta charset="UTF-8">
+<title>Reservas Tutorías</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: #f4f4f4;
+}
+h1,h2 {
+  text-align: center;
+}
+.container {
+  max-width: 900px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+}
+input, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+}
+button {
+  background: #0077cc;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-top: 12px;
+}
+button:hover {
+  background: #005fa3;
+}
+.table {
+  display: grid;
+  grid-template-columns: repeat(6,1fr);
+  gap: 10px;
+  margin-top: 20px;
+}
+.cell {
+  background: #f0f0f0;
+  padding: 10px;
+  min-height: 80px;
+  border-radius: 6px;
+}
+.slot-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.reserva {
+  background: white;
+  border-left: 4px solid #0077cc;
+  padding: 5px;
+  margin-top: 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+</style>
 </head>
-<body style="font-family: system-ui, Arial, sans-serif; padding:12px;">
 
-  <h2>Reservas de Tutorías – Física (Supabase)</h2>
-  <p style="color:#555">Horarios: lunes a viernes, 08:00–17:00 (intervalos 30 min). Almuerzo 13:00–14:00. Cupo máximo: 3 estudiantes por franja.</p>
+<body>
 
-  <div style="background:#fff;padding:12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.06); margin-bottom:20px;">
-    <h3 style="margin-top:0">Reservar tutoría</h3>
+<div class="container">
+<h1>Sistema de Reservas – Tutorías</h1>
 
-    <form id="formA">
-      <label>Nombre completo
-        <input id="nameA" type="text" required style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px;">
-      </label><br><br>
+<h2>Hacer una Reserva</h2>
 
-      <label>Email institucional (EPN)
-        <input id="emailA" type="email" required style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px;">
-      </label><br><br>
+<label>Nombre
+  <input id="nameA" type="text" required>
+</label>
 
-      <label>Código
-        <input id="codigoA" type="text" required style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px;">
-      </label><br><br>
+<label>Email institucional
+  <input id="emailA" type="email" required>
+</label>
 
-      <label>Día
-        <select id="dayA" style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px;"></select>
-      </label><br><br>
+<label>Código (3 números)
+  <input id="codigoA" type="text" maxlength="3">
+</label>
 
-      <label>Hora
-        <select id="timeA" style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px;"></select>
-      </label><br><br>
+<label>Día
+  <select id="dayA">
+    <option>Lunes</option>
+    <option>Martes</option>
+    <option>Miércoles</option>
+    <option>Jueves</option>
+    <option>Viernes</option>
+  </select>
+</label>
 
-      <button type="submit" style="background:#0b5ed7;color:white;border:none;padding:10px;border-radius:8px;width:100%;cursor:pointer;">Reservar</button>
+<label>Fecha
+  <input id="fechaA" type="date" required>
+</label>
 
-      <div id="msgA" style="margin-top:10px;font-size:13px;"></div>
-    </form>
-  </div>
+<label>Hora
+  <select id="timeA">
+    <option>10:00</option>
+    <option>10:30</option>
+    <option>11:00</option>
+    <option>11:30</option>
+    <option>12:00</option>
+  </select>
+</label>
 
-  <h3>Calendario semanal</h3>
-  <div id="calendarA" style="overflow-x:auto;"></div>
+<button id="btnReserva">Reservar</button>
 
-  <div style="margin-top:20px;text-align:center;">
-    <button id="resetBtn" style="background:#b30000;color:white;padding:10px 18px;border:none;border-radius:8px;cursor:pointer;">
-      Resetear TODAS las Reservas (Admin)
-    </button>
-  </div>
+<h2>Calendario semanal</h2>
+<div id="calA" class="table"></div>
 
-  <!-- Supabase JS (no cambiar) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</div>
 
-  <script>
-    // ----------------- CONFIG: pega aquí tus credenciales -----------------
-    const SUPABASE_URL = "https://cxqjjhmzeynerihybjsd.supabase.co";        // <--- reemplaza
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4cWpqaG16ZXluZXJpaHlianNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NTcyMTgsImV4cCI6MjA3OTAzMzIxOH0.xiMMHudBafGBlRwFfKvcS_fsssNojSgHFSrFBfaSUFE";                    // <--- reemplaza
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    // ---------------------------------------------------------------------
+<script>
+// ==========================
+// CONFIGURAR SUPABASE
+// ==========================
+const db = supabase.createClient(
+  "TU_URL_SUPABASE",
+  "TU_ANON_KEY"
+);
 
-    const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-    const TIMES = (function genTimes(){
-      let out = [];
-      for (let h=8; h<17; h++){
-        for (let m=0; m<60; m+=30){
-          let t = `${String(h).padStart(2,"0")}:${m===0?"00":"30"}`;
-          if (!(t >= "13:00" && t < "14:00")) out.push(t);
-        }
-      }
-      return out;
-    })();
+// ==========================
+// Selección rápida
+// ==========================
+const q = id => document.getElementById(id);
 
-    // ----------------- helpers para DOM -----------------
-    function q(id){ return document.getElementById(id); }
+// ==========================
+// Calcular lunes-viernes de la semana
+// ==========================
+function getWeekRange(dateStr){
+  const d = new Date(dateStr);
+  const day = d.getDay() === 0 ? 7 : d.getDay(); // lunes=1
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - (day - 1));
 
-    // ----------------- Cargar reservas desde Supabase (agrupado) -----------------
-    async function loadA(){
-      try {
-        const { data, error } = await db.from('reservas').select('*').order('created_at', {ascending:true});
-        if (error) { console.error(error); return {}; }
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
 
-        let grouped = {};
-        data.forEach(r => {
-          const key = `${r.day}|${r.time}`;
-          if (!grouped[key]) grouped[key] = [];
-          grouped[key].push({ name: r.name, email: r.email, codigo: r.codigo});
+  return {
+    start: monday.toISOString().slice(0,10),
+    end: friday.toISOString().slice(0,10)
+  };
+}
+
+// ==========================
+// Cargar reservas de la semana
+// ==========================
+async function loadA(fechaBase){
+  if (!fechaBase) return {};
+
+  const { start, end } = getWeekRange(fechaBase);
+
+  const { data, error } = await db
+    .from("reservas")
+    .select("*")
+    .gte("fecha", start)
+    .lte("fecha", end)
+    .order("created_at", {ascending:true});
+
+  if (error || !data) return {};
+
+  let grouped = {};
+
+  data.forEach(r => {
+    const key = `${r.day}|${r.time}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push({
+      name: r.name,
+      email: r.email,
+      codigo: r.codigo,
+      fecha: r.fecha
+    });
+  });
+
+  return grouped;
+}
+
+// ==========================
+// Guardar reserva por RPC
+// ==========================
+async function saveReserveRPC({name, email, codigo, day, fecha, time}){
+
+  const { data, error } = await db.rpc("reserve_slot", {
+    p_name: name,
+    p_email: email,
+    p_codigo: codigo,
+    p_day: day,
+    p_fecha: fecha,
+    p_time: time
+  });
+
+  if (error) return null;
+  return data;
+}
+
+// ==========================
+// Render del calendario
+// ==========================
+async function renderCalendarA(){
+  const fechaBase = q("fechaA").value || new Date().toISOString().slice(0,10);
+
+  const data = await loadA(fechaBase);
+
+  const dias = ["Lunes","Martes","Miércoles","Jueves","Viernes"];
+  const horas = ["10:00","10:30","11:00","11:30","12:00"];
+
+  let html = "";
+
+  dias.forEach(d => {
+    horas.forEach(h => {
+      const key = `${d}|${h}`;
+      html += `<div class="cell">
+        <div class="slot-title">${d} ${h}</div>
+      `;
+
+      if (data[key]) {
+        data[key].forEach(r => {
+          html += `<div class="reserva">
+            ${r.name} – ${r.email}<br>
+            Código: ${r.codigo}<br>
+            Fecha: ${r.fecha}
+          </div>`;
         });
-        return grouped;
-      } catch(err) {
-        console.error(err);
-        return {};
       }
-    }
 
-    // ----------------- Guardar usando RPC reserve_slot -----------------
-    async function saveReserveRPC({name, email, codigo, day, time}){
-      // Llama al RPC; devuelve {data,error}
-      try {
-        const { data, error } = await db.rpc('reserve_slot', {
-          p_name: name,
-          p_email: email,
-          p_codigo: codigo,
-          p_day: day,
-          p_time: time
-        });
-        return { data, error };
-      } catch(err){
-        return { error: err };
-      }
-    }
+      html += `</div>`;
+    });
+  });
 
-    // ----------------- RENDER CALENDAR -----------------
-    async function renderCalendarA(){
-      const data = await loadA();
-      let html = '<table style="border-collapse:collapse; width:100%; min-width:720px;">';
-      html += '<tr><th style="border:1px solid #eee; padding:6px; background:#fafafa;">Hora</th>';
-      DAYS.forEach(d => html += `<th style='border:1px solid #eee; padding:6px; background:#fafafa;'>${d}</th>`);
-      html += '</tr>';
+  q("calA").innerHTML = html;
+}
 
-      TIMES.forEach(t => {
-        html += `<tr><th style='border:1px solid #eee; padding:6px;'>${t}</th>`;
-        DAYS.forEach(day => {
-          const key = day + "|" + t;
-          const list = data[key] || [];
-          const full = list.length >= 3;
-          const bg = full ? "#f7c5c5" : "#c8f7c5";
+// ==========================
+// Hacer reserva
+// ==========================
+q("btnReserva").onclick = async () => {
+  const name = q("nameA").value.trim();
+  const email = q("emailA").value.trim();
+  const codigo = q("codigoA").value.trim();
+  const day = q("dayA").value;
+  const fecha = q("fechaA").value;
+  const time = q("timeA").value;
 
-          html += `<td data-k='${key}' style='border:1px solid #eee; padding:6px; background:${bg}; cursor:pointer;'>`;
-          html += `<div><b>${list.length}/3</b></div>`;
-          if (list.length === 0) html += `<div style='font-size:12px;'>Disponible</div>`;
-          else html += `<div style='font-size:12px;'>${list.map(r => r.name + " ("+r.codigo+")").join('<br>')}</div>`;
-          html += '</td>';
-        });
-        html += '</tr>';
-      });
+  if (!name || !email || !codigo || !fecha){
+    alert("Todos los campos son obligatorios.");
+    return;
+  }
 
-      html += '</table>';
-      q('calendarA').innerHTML = html;
+  const res = await saveReserveRPC({name, email, codigo, day, fecha, time});
 
-      document.querySelectorAll('#calendarA td').forEach(td => {
-        td.onclick = () => {
-          const [d,h] = td.getAttribute('data-k').split('|');
-          q('dayA').value = d;
-          q('timeA').value = h;
-          window.scrollTo({top:0, behavior:'smooth'});
-        };
-      });
-    }
+  if (res === "OK"){
+    alert("Reserva realizada con éxito.");
+    await renderCalendarA();
+  }
+  else if (res === "FULL"){
+    alert("Ese horario ya está lleno (máx: 3).");
+  }
+  else if (res === "DUP"){
+    alert("Ya tienes una reserva en ese horario.");
+  }
+  else{
+    alert("Hubo un error inesperado.");
+  }
+};
 
-    // ----------------- FORM INIT -----------------
-    function initFormA(){
-      q('dayA').innerHTML = DAYS.map(d => `<option>${d}</option>`).join('');
-      q('timeA').innerHTML = TIMES.map(t => `<option>${t}</option>`).join('');
+// Actualizar calendario al cambiar fecha
+q("fechaA").onchange = renderCalendarA;
 
-      q('formA').onsubmit = async (e) => {
-        e.preventDefault();
-        const name = q('nameA').value.trim();
-        const email = q('emailA').value.trim();
-        const codigo = q('codigoA').value.trim();
-        const day = q('dayA').value;
-        const time = q('timeA').value;
-        const msg = q('msgA');
+// Render inicial
+q("fechaA").value = new Date().toISOString().slice(0,10);
+renderCalendarA();
 
-        if (!/^[^@\s]+@epn\.edu\.ec$/i.test(email)) {
-          msg.style.color='red'; msg.innerHTML='Debe usar correo @epn.edu.ec'; return;
-        }
-
-        // Llamamos al RPC que valida y guarda atómicamente
-        msg.style.color='black'; msg.innerHTML='Guardando reserva...';
-        const res = await saveReserveRPC({name,email,codigo,day,time});
-        if (res.error) {
-          console.error(res.error);
-          msg.style.color='red';
-          msg.innerHTML = "Error al guardar la reserva (ver consola).";
-          return;
-        }
-
-        // data: normalmente ['OK'] o ['FULL']
-        const result = Array.isArray(res.data) ? res.data[0] : res.data;
-        if (result === 'FULL') {
-          msg.style.color='red';
-          msg.innerHTML = "Horario sin cupo (ya hay 3 reservas).";
-        } else if (result === 'DUP') {
-          msg.style.color='red';
-          msg.innerHTML = "Ya tienes una reserva en esa franja.";
-        } else {
-          msg.style.color='green';
-          msg.innerHTML = "Reserva confirmada.";
-        }
-
-        // refrescar vista
-        setTimeout(renderCalendarA, 400);
-      };
-    }
-
-    // ----------------- ADMIN RESET (usa RPC admin_reset pw) -----------------
-    async function resetReservasA(){
-      const clave = prompt("Ingrese la contraseña de administrador:");
-      if (clave === null) return;
-      // Llamar RPC admin_reset
-      try {
-        const { data, error } = await db.rpc('admin_reset', { p_password: clave });
-        if (error) {
-          alert("Error al intentar resetear. Ver consola.");
-          console.error(error);
-          return;
-        }
-        const res = Array.isArray(data) ? data[0] : data;
-        if (res === 'OK') {
-          alert("✔ Reservas borradas.");
-          renderCalendarA();
-        } else {
-          alert("❌ Contraseña incorrecta.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Error inesperado.");
-      }
-    }
-
-    // ----------------- Init app -----------------
-    initFormA();
-    renderCalendarA();
-    document.getElementById('resetBtn').onclick = resetReservasA;
-  </script>
+</script>
 </body>
 </html>
