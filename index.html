@@ -18,7 +18,7 @@ h1,h2 {
   text-align: center;
 }
 .container {
-  max-width: 900px;
+  max-width: 980px;
   margin: auto;
   background: white;
   padding: 20px;
@@ -42,22 +42,39 @@ button {
 button:hover {
   background: #005fa3;
 }
-.table {
+
+/* === TABLA REAL DEL CALENDARIO ==== */
+.calendar-grid {
   display: grid;
-  grid-template-columns: repeat(6,1fr);
-  gap: 10px;
+  grid-template-columns: 100px repeat(5, 1fr);
+  border: 1px solid #ccc;
   margin-top: 20px;
 }
-.cell {
-  background: #f0f0f0;
+
+.calendar-header {
+  background: #0077cc;
+  color: white;
   padding: 10px;
-  min-height: 80px;
-  border-radius: 6px;
-}
-.slot-title {
+  text-align: center;
   font-weight: bold;
-  margin-bottom: 8px;
+  border: 1px solid #ccc;
 }
+
+.calendar-hour {
+  background: #eaeaea;
+  padding: 10px;
+  border: 1px solid #ccc;
+  font-weight: bold;
+  text-align: center;
+}
+
+.calendar-cell {
+  min-height: 80px;
+  padding: 5px;
+  border: 1px solid #ccc;
+  background: #fdfdfd;
+}
+
 .reserva {
   background: white;
   border-left: 4px solid #0077cc;
@@ -115,7 +132,7 @@ button:hover {
 <button id="btnReserva">Reservar</button>
 
 <h2>Calendario semanal</h2>
-<div id="calA" class="table"></div>
+<div id="calA"></div>
 
 </div>
 
@@ -129,8 +146,6 @@ const db = supabase.createClient(
 );
 
 // ==========================
-// Selección rápida
-// ==========================
 const q = id => document.getElementById(id);
 
 // ==========================
@@ -138,7 +153,7 @@ const q = id => document.getElementById(id);
 // ==========================
 function getWeekRange(dateStr){
   const d = new Date(dateStr);
-  const day = d.getDay() === 0 ? 7 : d.getDay(); // lunes=1
+  const day = d.getDay() === 0 ? 7 : d.getDay();
   const monday = new Date(d);
   monday.setDate(d.getDate() - (day - 1));
 
@@ -185,7 +200,7 @@ async function loadA(fechaBase){
 }
 
 // ==========================
-// Guardar reserva por RPC
+// Guardar reserva
 // ==========================
 async function saveReserveRPC({name, email, codigo, day, fecha, time}){
 
@@ -213,20 +228,25 @@ async function renderCalendarA(){
   const dias = ["Lunes","Martes","Miércoles","Jueves","Viernes"];
   const horas = ["10:00","10:30","11:00","11:30","12:00"];
 
-  let html = "";
+  let html = `<div class="calendar-grid">`;
 
+  html += `<div class="calendar-header"></div>`;
   dias.forEach(d => {
-    horas.forEach(h => {
+    html += `<div class="calendar-header">${d}</div>`;
+  });
+
+  horas.forEach(h => {
+    html += `<div class="calendar-hour">${h}</div>`;
+
+    dias.forEach(d => {
       const key = `${d}|${h}`;
-      html += `<div class="cell">
-        <div class="slot-title">${d} ${h}</div>
-      `;
+      html += `<div class="calendar-cell">`;
 
       if (data[key]) {
         data[key].forEach(r => {
           html += `<div class="reserva">
-            ${r.name} – ${r.email}<br>
-            Código: ${r.codigo}<br>
+            ${r.name} (${r.codigo})<br>
+            ${r.email}<br>
             Fecha: ${r.fecha}
           </div>`;
         });
@@ -236,11 +256,13 @@ async function renderCalendarA(){
     });
   });
 
+  html += `</div>`;
+
   q("calA").innerHTML = html;
 }
 
 // ==========================
-// Hacer reserva
+// Reservar
 // ==========================
 q("btnReserva").onclick = async () => {
   const name = q("nameA").value.trim();
