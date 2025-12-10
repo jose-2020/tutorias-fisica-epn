@@ -8,7 +8,16 @@
 <body style="font-family: system-ui, Arial, sans-serif; padding:12px;">
 
   <h2>Reservas de Tutorías – Física (Supabase)</h2>
-  <p style="color:#555">Horarios: lunes a viernes, 08:00–17:00 (intervalos 30 min). Almuerzo 13:00–14:00. Cupo máximo: 3 estudiantes por franja.</p>
+  <p style="color:#555">
+    Ahora puedes seleccionar la semana (2025–2026).  
+    Horarios: lunes a viernes, 08:00–17:00 (30 min). Almuerzo 13:00–14:00. Máximo 3 estudiantes por franja.
+  </p>
+
+  <!-- NUEVO: selector de semana -->
+  <div style="margin-bottom:15px;">
+    <label><b>Semana:</b></label>
+    <select id="weekA" style="padding:6px;border:1px solid #ccc;border-radius:6px;"></select>
+  </div>
 
   <div style="background:#fff;padding:12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.06); margin-bottom:20px;">
     <h3 style="margin-top:0">Reservar tutoría</h3>
@@ -66,9 +75,38 @@
 
     function q(id){ return document.getElementById(id); }
 
-    // -------- Cargar reservas ----------
+    // --- NUEVO: generar semanas 2025–2026 ---
+    function generateWeeks(){
+      let out = [];
+      const start = new Date("2025-01-01");
+      const end = new Date("2026-12-31");
+
+      let current = new Date(start);
+      while (current <= end){
+        if (current.getDay() === 1){ // lunes
+          const y = current.getFullYear();
+          const m = String(current.getMonth()+1).padStart(2,"0");
+          const d = String(current.getDate()).padStart(2,"0");
+          out.push(`${y}-${m}-${d}`); // week_id
+        }
+        current.setDate(current.getDate()+1);
+      }
+      return out;
+    }
+
+    const WEEKS = generateWeeks();
+
+
+    // -------- Cargar reservas (AÑADIDO week_id) ----------
     async function loadA(){
-      const { data, error } = await db.from('reservas').select('*').order('created_at', {ascending:true});
+      const week = q("weekA").value;
+
+      const { data, error } = await db
+        .from('reservas')
+        .select('*')
+        .eq('week_id', week)
+        .order('created_at', {ascending:true});
+
       if (error) { console.error(error); return {}; }
 
       let grouped = {};
@@ -80,14 +118,15 @@
       return grouped;
     }
 
-    // -------- Guardar reserva vía RPC ----------
-    async function saveReserveRPC({name, email, codigo, day, time}){
+    // -------- Guardar reserva vía RPC (AÑADIDO week_id) ----------
+    async function saveReserveRPC({name, email, codigo, day, time, week_id}){
       const { data, error } = await db.rpc('reserve_slot', {
         p_name: name,
         p_email: email,
         p_codigo: codigo,
         p_day: day,
-        p_time: time
+        p_time: time,
+        p_week_id: week_id
       });
       return { data, error };
     }
@@ -132,8 +171,14 @@
 
     // -------- Inicialización del formulario ----------
     function initFormA(){
+
+      // llenar semanas
+      q("weekA").innerHTML = WEEKS.map(w => `<option>${w}</option>`).join('');
+
       q('dayA').innerHTML = DAYS.map(d => `<option>${d}</option>`).join('');
       q('timeA').innerHTML = TIMES.map(t => `<option>${t}</option>`).join('');
+
+      q("weekA").onchange = renderCalendarA;
 
       q('formA').onsubmit = async (e) => {
         e.preventDefault();
@@ -143,16 +188,20 @@
         const codigo = q('codigoA').value.trim();
         const day = q('dayA').value;
         const time = q('timeA').value;
+        const week = q('weekA').value;
+
         const msg = q('msgA');
 
         if (!/^[^@\s]+@epn\.edu\.ec$/i.test(email)) {
-          msg.style.color='red'; msg.innerHTML='Debe usar correo @epn.edu.ec'; return;
+          msg.style.color='red'; 
+          msg.innerHTML='Debe usar correo @epn.edu.ec'; 
+          return;
         }
 
         msg.style.color='black';
         msg.innerHTML='Guardando reserva...';
 
-        const res = await saveReserveRPC({name,email,codigo,day,time});
+        const res = await saveReserveRPC({name,email,codigo,day,time,week_id:week});
         if (res.error) {
           console.error(res.error);
           msg.style.color='red';
