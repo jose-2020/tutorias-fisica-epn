@@ -43,21 +43,14 @@
   <h3>Calendario semanal</h3>
   <div id="calendarA" style="overflow-x:auto;"></div>
 
-  <div style="margin-top:20px;text-align:center;">
-    <button id="resetBtn" style="background:#b30000;color:white;padding:10px 18px;border:none;border-radius:8px;cursor:pointer;">
-      Resetear TODAS las Reservas (Admin)
-    </button>
-  </div>
-
-  <!-- Supabase JS (no cambiar) -->
+  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    // ----------------- CONFIG: pega aquí tus credenciales -----------------
-    const SUPABASE_URL = "https://cxqjjhmzeynerihybjsd.supabase.co";        // <--- reemplaza
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4cWpqaG16ZXluZXJpaHlianNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NTcyMTgsImV4cCI6MjA3OTAzMzIxOH0.xiMMHudBafGBlRwFfKvcS_fsssNojSgHFSrFBfaSUFE";                    // <--- reemplaza
+    // -------- CONFIG SUPABASE ----------
+    const SUPABASE_URL = "https://cxqjjhmzeynerihybjsd.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4cWpqaG16ZXluZXJpaHlianNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NTcyMTgsImV4cCI6MjA3OTAzMzIxOH0.xiMMHudBafGBlRwFfKvcS_fsssNojSgHFSrFBfaSUFE";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    // ---------------------------------------------------------------------
 
     const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
     const TIMES = (function genTimes(){
@@ -71,46 +64,35 @@
       return out;
     })();
 
-    // ----------------- helpers para DOM -----------------
     function q(id){ return document.getElementById(id); }
 
-    // ----------------- Cargar reservas desde Supabase (agrupado) -----------------
+    // -------- Cargar reservas ----------
     async function loadA(){
-      try {
-        const { data, error } = await db.from('reservas').select('*').order('created_at', {ascending:true});
-        if (error) { console.error(error); return {}; }
+      const { data, error } = await db.from('reservas').select('*').order('created_at', {ascending:true});
+      if (error) { console.error(error); return {}; }
 
-        let grouped = {};
-        data.forEach(r => {
-          const key = `${r.day}|${r.time}`;
-          if (!grouped[key]) grouped[key] = [];
-          grouped[key].push({ name: r.name, email: r.email, codigo: r.codigo});
-        });
-        return grouped;
-      } catch(err) {
-        console.error(err);
-        return {};
-      }
+      let grouped = {};
+      data.forEach(r => {
+        const key = `${r.day}|${r.time}`;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push({ name: r.name, email: r.email, codigo: r.codigo});
+      });
+      return grouped;
     }
 
-    // ----------------- Guardar usando RPC reserve_slot -----------------
+    // -------- Guardar reserva vía RPC ----------
     async function saveReserveRPC({name, email, codigo, day, time}){
-      // Llama al RPC; devuelve {data,error}
-      try {
-        const { data, error } = await db.rpc('reserve_slot', {
-          p_name: name,
-          p_email: email,
-          p_codigo: codigo,
-          p_day: day,
-          p_time: time
-        });
-        return { data, error };
-      } catch(err){
-        return { error: err };
-      }
+      const { data, error } = await db.rpc('reserve_slot', {
+        p_name: name,
+        p_email: email,
+        p_codigo: codigo,
+        p_day: day,
+        p_time: time
+      });
+      return { data, error };
     }
 
-    // ----------------- RENDER CALENDAR -----------------
+    // -------- Renderizado del calendario ----------
     async function renderCalendarA(){
       const data = await loadA();
       let html = '<table style="border-collapse:collapse; width:100%; min-width:720px;">';
@@ -148,13 +130,14 @@
       });
     }
 
-    // ----------------- FORM INIT -----------------
+    // -------- Inicialización del formulario ----------
     function initFormA(){
       q('dayA').innerHTML = DAYS.map(d => `<option>${d}</option>`).join('');
       q('timeA').innerHTML = TIMES.map(t => `<option>${t}</option>`).join('');
 
       q('formA').onsubmit = async (e) => {
         e.preventDefault();
+        
         const name = q('nameA').value.trim();
         const email = q('emailA').value.trim();
         const codigo = q('codigoA').value.trim();
@@ -166,18 +149,19 @@
           msg.style.color='red'; msg.innerHTML='Debe usar correo @epn.edu.ec'; return;
         }
 
-        // Llamamos al RPC que valida y guarda atómicamente
-        msg.style.color='black'; msg.innerHTML='Guardando reserva...';
+        msg.style.color='black';
+        msg.innerHTML='Guardando reserva...';
+
         const res = await saveReserveRPC({name,email,codigo,day,time});
         if (res.error) {
           console.error(res.error);
           msg.style.color='red';
-          msg.innerHTML = "Error al guardar la reserva (ver consola).";
+          msg.innerHTML = "Error al guardar la reserva.";
           return;
         }
 
-        // data: normalmente ['OK'] o ['FULL']
         const result = Array.isArray(res.data) ? res.data[0] : res.data;
+
         if (result === 'FULL') {
           msg.style.color='red';
           msg.innerHTML = "Horario sin cupo (ya hay 3 reservas).";
@@ -189,40 +173,14 @@
           msg.innerHTML = "Reserva confirmada.";
         }
 
-        // refrescar vista
         setTimeout(renderCalendarA, 400);
       };
     }
 
-    // ----------------- ADMIN RESET (usa RPC admin_reset pw) -----------------
-    async function resetReservasA(){
-      const clave = prompt("Ingrese la contraseña de administrador:");
-      if (clave === null) return;
-      // Llamar RPC admin_reset
-      try {
-        const { data, error } = await db.rpc('admin_reset', { p_password: clave });
-        if (error) {
-          alert("Error al intentar resetear. Ver consola.");
-          console.error(error);
-          return;
-        }
-        const res = Array.isArray(data) ? data[0] : data;
-        if (res === 'OK') {
-          alert("✔ Reservas borradas.");
-          renderCalendarA();
-        } else {
-          alert("❌ Contraseña incorrecta.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Error inesperado.");
-      }
-    }
-
-    // ----------------- Init app -----------------
+    // -------- Iniciar aplicación ----------
     initFormA();
     renderCalendarA();
-    document.getElementById('resetBtn').onclick = resetReservasA;
+
   </script>
 </body>
 </html>
