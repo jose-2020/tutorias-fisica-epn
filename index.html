@@ -8,16 +8,7 @@
 <body style="font-family: system-ui, Arial, sans-serif; padding:12px;">
 
   <h2>Reservas de Tutorías – Física (Supabase)</h2>
-  <p style="color:#555">
-    Ahora puedes seleccionar la semana (2025–2026).  
-    Horarios: lunes a viernes, 08:00–17:00 (30 min). Almuerzo 13:00–14:00. Máximo 3 estudiantes por franja.
-  </p>
-
-  <!-- NUEVO: selector de semana -->
-  <div style="margin-bottom:15px;">
-    <label><b>Semana:</b></label>
-    <select id="weekA" style="padding:6px;border:1px solid #ccc;border-radius:6px;"></select>
-  </div>
+  <p style="color:#555">Horarios: lunes a viernes, 08:00–17:00 (intervalos 30 min). Almuerzo 13:00–14:00. Cupo máximo: 3 estudiantes por franja.</p>
 
   <div style="background:#fff;padding:12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.06); margin-bottom:20px;">
     <h3 style="margin-top:0">Reservar tutoría</h3>
@@ -49,6 +40,13 @@
     </form>
   </div>
 
+  <!-- CONTROLES DE SEMANA -->
+  <div style="display:flex; justify-content:space-between; margin:12px 0;">
+    <button id="prevWeek" style="padding:6px 12px;">⬅ Semana anterior</button>
+    <h3 id="weekLabel"></h3>
+    <button id="nextWeek" style="padding:6px 12px;">Semana siguiente ➡</button>
+  </div>
+
   <h3>Calendario semanal</h3>
   <div id="calendarA" style="overflow-x:auto;"></div>
 
@@ -75,36 +73,45 @@
 
     function q(id){ return document.getElementById(id); }
 
-    // --- NUEVO: generar semanas 2025–2026 ---
-    function generateWeeks(){
-      let out = [];
-      const start = new Date("2025-01-01");
-      const end = new Date("2026-12-31");
+    // --------- FUNCIONES DE SEMANA ----------
+    let currentMonday = getMonday(new Date());
 
-      let current = new Date(start);
-      while (current <= end){
-        if (current.getDay() === 1){ // lunes
-          const y = current.getFullYear();
-          const m = String(current.getMonth()+1).padStart(2,"0");
-          const d = String(current.getDate()).padStart(2,"0");
-          out.push(`${y}-${m}-${d}`); // week_id
-        }
-        current.setDate(current.getDate()+1);
-      }
-      return out;
+    function getMonday(d){
+      d = new Date(d);
+      const day = d.getDay();
+      const diff = d.getDate() - (day === 0 ? 6 : day - 1);
+      return new Date(d.setDate(diff));
     }
 
-    const WEEKS = generateWeeks();
+    function addDays(date, days){
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    }
 
+    function formatDate(d){
+      return d.toLocaleDateString("es-ES", { day:"2-digit", month:"short" });
+    }
 
-    // -------- Cargar reservas (AÑADIDO week_id) ----------
+    // --------- BOTONES SEMANA ----------
+    document.getElementById("prevWeek").onclick = () => {
+      const today = getMonday(new Date());
+      const prev = addDays(currentMonday, -7);
+      if (prev < today) return; // bloquear semanas pasadas
+      currentMonday = prev;
+      renderCalendarA();
+    };
+
+    document.getElementById("nextWeek").onclick = () => {
+      currentMonday = addDays(currentMonday, +7);
+      renderCalendarA();
+    };
+
+    // -------- Cargar reservas ----------
     async function loadA(){
-      const week = q("weekA").value;
-
       const { data, error } = await db
         .from('reservas')
         .select('*')
-        .eq('week_id', week)
         .order('created_at', {ascending:true});
 
       if (error) { console.error(error); return {}; }
@@ -113,53 +120,87 @@
       data.forEach(r => {
         const key = `${r.day}|${r.time}`;
         if (!grouped[key]) grouped[key] = [];
-        grouped[key].push({ name: r.name, email: r.email, codigo: r.codigo});
+        grouped[key].push({
+          name: r.name,
+          email: r.email,
+          codigo: r.codigo
+        });
       });
       return grouped;
     }
 
-    // -------- Guardar reserva vía RPC (AÑADIDO week_id) ----------
-    async function saveReserveRPC({name, email, codigo, day, time, week_id}){
+    // -------- Guardar reserva vía RPC ----------
+    async function saveReserveRPC({name, email, codigo, day, time}){
       const { data, error } = await db.rpc('reserve_slot', {
         p_name: name,
         p_email: email,
         p_codigo: codigo,
         p_day: day,
-        p_time: time,
-        p_week_id: week_id
+        p_time: time
       });
       return { data, error };
     }
 
-    // -------- Renderizado del calendario ----------
+    // ------------------- CALENDARIO SEMANAL ------------------------
     async function renderCalendarA(){
       const data = await loadA();
-      let html = '<table style="border-collapse:collapse; width:100%; min-width:720px;">';
-      html += '<tr><th style="border:1px solid #eee; padding:6px; background:#fafafa;">Hora</th>';
-      DAYS.forEach(d => html += `<th style='border:1px solid #eee; padding:6px; background:#fafafa;'>${d}</th>`);
-      html += '</tr>';
 
+      // etiqueta semana
+      const endWeek = addDays(currentMonday, 4);
+      document.getElementById("weekLabel").innerHTML =
+        `Semana del ${formatDate(currentMonday)} al ${formatDate(endWeek)}`;
+
+      let html = '<table style="border-collapse:collapse; width:100%; min-width:720px;">';
+
+      // Encabezados con fechas
+      html += "<tr><th style='border:1px solid #eee; padding:6px; background:#fafafa;'>Hora</th>";
+      for (let i=0; i<5; i++){
+        const d = addDays(currentMonday, i);
+        html += `<th style='border:1px solid #eee; padding:6px; background:#fafafa;'>
+                   ${DAYS[i]}<br>${formatDate(d)}
+                 </th>`;
+      }
+      html += "</tr>";
+
+      // Celdas
       TIMES.forEach(t => {
         html += `<tr><th style='border:1px solid #eee; padding:6px;'>${t}</th>`;
-        DAYS.forEach(day => {
-          const key = day + "|" + t;
+
+        for (let i=0; i<5; i++){
+          const date = addDays(currentMonday, i);
+          const dayName = DAYS[i];
+          const key = `${dayName}|${t}`;
           const list = data[key] || [];
           const full = list.length >= 3;
           const bg = full ? "#f7c5c5" : "#c8f7c5";
 
-          html += `<td data-k='${key}' style='border:1px solid #eee; padding:6px; background:${bg}; cursor:pointer;'>`;
+          const isPast = date < getMonday(new Date());
+
+          html += `<td data-k='${key}'
+                     style='border:1px solid #eee; padding:6px;
+                            background:${bg};
+                            cursor:${isPast ? "not-allowed" : "pointer"};
+                            opacity:${isPast ? "0.40" : "1"};'>`;
+
           html += `<div><b>${list.length}/3</b></div>`;
-          if (list.length === 0) html += `<div style='font-size:12px;'>Disponible</div>`;
-          else html += `<div style='font-size:12px;'>${list.map(r => r.name + " ("+r.codigo+")").join('<br>')}</div>`;
-          html += '</td>';
-        });
-        html += '</tr>';
+
+          if (list.length === 0)
+            html += `<div style='font-size:12px;'>Disponible</div>`;
+          else
+            html += `<div style='font-size:12px;'>${list.map(r => r.name + " ("+r.codigo+")").join('<br>')}</div>`;
+
+          html += `</td>`;
+        }
+
+        html += "</tr>";
       });
 
-      html += '</table>';
-      q('calendarA').innerHTML = html;
+      html += "</table>";
+      q("calendarA").innerHTML = html;
 
+      // click en celdas (solo semanas válidas)
       document.querySelectorAll('#calendarA td').forEach(td => {
+        if (td.style.cursor === "not-allowed") return;
         td.onclick = () => {
           const [d,h] = td.getAttribute('data-k').split('|');
           q('dayA').value = d;
@@ -171,37 +212,29 @@
 
     // -------- Inicialización del formulario ----------
     function initFormA(){
-
-      // llenar semanas
-      q("weekA").innerHTML = WEEKS.map(w => `<option>${w}</option>`).join('');
-
       q('dayA').innerHTML = DAYS.map(d => `<option>${d}</option>`).join('');
       q('timeA').innerHTML = TIMES.map(t => `<option>${t}</option>`).join('');
 
-      q("weekA").onchange = renderCalendarA;
-
       q('formA').onsubmit = async (e) => {
         e.preventDefault();
-        
+
         const name = q('nameA').value.trim();
         const email = q('emailA').value.trim();
         const codigo = q('codigoA').value.trim();
         const day = q('dayA').value;
         const time = q('timeA').value;
-        const week = q('weekA').value;
-
         const msg = q('msgA');
 
         if (!/^[^@\s]+@epn\.edu\.ec$/i.test(email)) {
-          msg.style.color='red'; 
-          msg.innerHTML='Debe usar correo @epn.edu.ec'; 
+          msg.style.color='red';
+          msg.innerHTML='Debe usar correo @epn.edu.ec';
           return;
         }
 
         msg.style.color='black';
         msg.innerHTML='Guardando reserva...';
 
-        const res = await saveReserveRPC({name,email,codigo,day,time,week_id:week});
+        const res = await saveReserveRPC({name,email,codigo,day,time});
         if (res.error) {
           console.error(res.error);
           msg.style.color='red';
@@ -214,10 +247,12 @@
         if (result === 'FULL') {
           msg.style.color='red';
           msg.innerHTML = "Horario sin cupo (ya hay 3 reservas).";
-        } else if (result === 'DUP') {
+        } 
+        else if (result === 'DUP') {
           msg.style.color='red';
           msg.innerHTML = "Ya tienes una reserva en esa franja.";
-        } else {
+        } 
+        else {
           msg.style.color='green';
           msg.innerHTML = "Reserva confirmada.";
         }
