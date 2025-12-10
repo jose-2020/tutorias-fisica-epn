@@ -97,7 +97,7 @@
     document.getElementById("prevWeek").onclick = () => {
       const today = getMonday(new Date());
       const prev = addDays(currentMonday, -7);
-      //if (prev < today) return; // bloquear semanas pasadas
+      if (prev < today) return; // bloquear semanas pasadas
       currentMonday = prev;
       renderCalendarA();
     };
