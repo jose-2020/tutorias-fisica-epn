@@ -1,306 +1,207 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Reservas Tutorías</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calendario con Supabase</title>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<style>
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 20px;
-  background: #f4f4f4;
-}
-h1,h2 {
-  text-align: center;
-}
-.container {
-  max-width: 980px;
-  margin: auto;
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-}
-input, select, button {
-  width: 100%;
-  padding: 10px;
-  margin-top: 8px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 15px;
-}
-button {
-  background: #0077cc;
-  color: white;
-  border: none;
-  cursor: pointer;
-  margin-top: 12px;
-}
-button:hover {
-  background: #005fa3;
-}
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
 
-/* === TABLA REAL DEL CALENDARIO ==== */
-.calendar-grid {
-  display: grid;
-  grid-template-columns: 100px repeat(5, 1fr);
-  border: 1px solid #ccc;
-  margin-top: 20px;
-}
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
 
-.calendar-header {
-  background: #0077cc;
-  color: white;
-  padding: 10px;
-  text-align: center;
-  font-weight: bold;
-  border: 1px solid #ccc;
-}
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
 
-.calendar-hour {
-  background: #eaeaea;
-  padding: 10px;
-  border: 1px solid #ccc;
-  font-weight: bold;
-  text-align: center;
-}
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+      height: 80px;
+    }
 
-.calendar-cell {
-  min-height: 80px;
-  padding: 5px;
-  border: 1px solid #ccc;
-  background: #fdfdfd;
-}
+    th {
+      background: #eaeaea;
+    }
 
-.reserva {
-  background: white;
-  border-left: 4px solid #0077cc;
-  padding: 5px;
-  margin-top: 5px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-</style>
+    .event {
+      background: #4CAF50;
+      color: white;
+      border-radius: 4px;
+      padding: 3px;
+      margin-top: 5px;
+      display: block;
+    }
+
+    #eventForm {
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+    }
+
+    input, textarea, button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+    }
+
+    button {
+      background: #2196F3;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0b7dda;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="container">
-<h1>Sistema de Reservas – Tutorías</h1>
+  <h1>Calendario con Supabase</h1>
 
-<h2>Hacer una Reserva</h2>
+  <!-- Calendario -->
+  <table id="calendar"></table>
 
-<label>Nombre
-  <input id="nameA" type="text" required>
-</label>
+  <!-- Formulario para agregar eventos -->
+  <div id="eventForm">
+    <h3>Agregar evento</h3>
 
-<label>Email institucional
-  <input id="emailA" type="email" required>
-</label>
+    <label>Fecha:</label>
+    <input type="date" id="dateInput">
 
-<label>Código (3 números)
-  <input id="codigoA" type="text" maxlength="3">
-</label>
+    <label>Mensaje:</label>
+    <textarea id="messageInput"></textarea>
 
-<label>Día
-  <select id="dayA">
-    <option>Lunes</option>
-    <option>Martes</option>
-    <option>Miércoles</option>
-    <option>Jueves</option>
-    <option>Viernes</option>
-  </select>
-</label>
+    <button onclick="addEvent()">Guardar</button>
+  </div>
 
-<label>Fecha
-  <input id="fechaA" type="date" required>
-</label>
+  <script>
+    // Inicializar Supabase con tus datos
+    const supabase = supabase.createClient(
+      "https://cxqjjhmzeynerihybjsd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4cWpqaG16ZXluZXJpaHlianNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NTcyMTgsImV4cCI6MjA3OTAzMzIxOH0.xiMMHudBafGBlRwFfKvcS_fsssNojSgHFSrFBfaSUFE"
+    );
 
-<label>Hora
-  <select id="timeA">
-    <option>10:00</option>
-    <option>10:30</option>
-    <option>11:00</option>
-    <option>11:30</option>
-    <option>12:00</option>
-  </select>
-</label>
+    // Generar calendario
+    function generateCalendar() {
+      const table = document.getElementById("calendar");
+      table.innerHTML = "";
 
-<button id="btnReserva">Reservar</button>
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
 
-<h2>Calendario semanal</h2>
-<div id="calA"></div>
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-</div>
+      const days = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 
-<script>
-// ==========================
-// CONFIGURAR SUPABASE
-// ==========================
-const db = supabase.createClient(
-  "TU_URL_SUPABASE",
-  "TU_ANON_KEY"
-);
+      // Encabezados
+      let headerRow = "<tr>";
+      days.forEach(d => headerRow += `<th>${d}</th>`);
+      headerRow += "</tr>";
+      table.innerHTML += headerRow;
 
-// ==========================
-const q = id => document.getElementById(id);
+      // Construcción de la cuadrícula
+      let row = "<tr>";
+      let dayCount = 0;
 
-// ==========================
-// Calcular lunes-viernes de la semana
-// ==========================
-function getWeekRange(dateStr){
-  const d = new Date(dateStr);
-  const day = d.getDay() === 0 ? 7 : d.getDay();
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - (day - 1));
-
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-
-  return {
-    start: monday.toISOString().slice(0,10),
-    end: friday.toISOString().slice(0,10)
-  };
-}
-
-// ==========================
-// Cargar reservas de la semana
-// ==========================
-async function loadA(fechaBase){
-  if (!fechaBase) return {};
-
-  const { start, end } = getWeekRange(fechaBase);
-
-  const { data, error } = await db
-    .from("reservas")
-    .select("*")
-    .gte("fecha", start)
-    .lte("fecha", end)
-    .order("created_at", {ascending:true});
-
-  if (error || !data) return {};
-
-  let grouped = {};
-
-  data.forEach(r => {
-    const key = `${r.day}|${r.time}`;
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push({
-      name: r.name,
-      email: r.email,
-      codigo: r.codigo,
-      fecha: r.fecha
-    });
-  });
-
-  return grouped;
-}
-
-// ==========================
-// Guardar reserva
-// ==========================
-async function saveReserveRPC({name, email, codigo, day, fecha, time}){
-
-  const { data, error } = await db.rpc("reserve_slot", {
-    p_name: name,
-    p_email: email,
-    p_codigo: codigo,
-    p_day: day,
-    p_fecha: fecha,
-    p_time: time
-  });
-
-  if (error) return null;
-  return data;
-}
-
-// ==========================
-// Render del calendario
-// ==========================
-async function renderCalendarA(){
-  const fechaBase = q("fechaA").value || new Date().toISOString().slice(0,10);
-
-  const data = await loadA(fechaBase);
-
-  const dias = ["Lunes","Martes","Miércoles","Jueves","Viernes"];
-  const horas = ["10:00","10:30","11:00","11:30","12:00"];
-
-  let html = `<div class="calendar-grid">`;
-
-  html += `<div class="calendar-header"></div>`;
-  dias.forEach(d => {
-    html += `<div class="calendar-header">${d}</div>`;
-  });
-
-  horas.forEach(h => {
-    html += `<div class="calendar-hour">${h}</div>`;
-
-    dias.forEach(d => {
-      const key = `${d}|${h}`;
-      html += `<div class="calendar-cell">`;
-
-      if (data[key]) {
-        data[key].forEach(r => {
-          html += `<div class="reserva">
-            ${r.name} (${r.codigo})<br>
-            ${r.email}<br>
-            Fecha: ${r.fecha}
-          </div>`;
-        });
+      for (let i = 0; i < firstDay; i++) {
+        row += "<td></td>";
+        dayCount++;
       }
 
-      html += `</div>`;
-    });
-  });
+      for (let day = 1; day <= daysInMonth; day++) {
+        if (dayCount === 7) {
+          row += "</tr>";
+          table.innerHTML += row;
+          row = "<tr>";
+          dayCount = 0;
+        }
 
-  html += `</div>`;
+        row += `<td id='day-${day}'><strong>${day}</strong><div class='events'></div></td>`;
+        dayCount++;
+      }
 
-  q("calA").innerHTML = html;
-}
+      // Cerrar fila final
+      row += "</tr>";
+      table.innerHTML += row;
 
-// ==========================
-// Reservar
-// ==========================
-q("btnReserva").onclick = async () => {
-  const name = q("nameA").value.trim();
-  const email = q("emailA").value.trim();
-  const codigo = q("codigoA").value.trim();
-  const day = q("dayA").value;
-  const fecha = q("fechaA").value;
-  const time = q("timeA").value;
+      loadEvents();
+    }
 
-  if (!name || !email || !codigo || !fecha){
-    alert("Todos los campos son obligatorios.");
-    return;
-  }
+    // Cargar eventos desde Supabase
+    async function loadEvents() {
+      const { data, error } = await supabase
+        .from("chats")
+        .select("*")
+        .order("created_at", { ascending: true });
 
-  const res = await saveReserveRPC({name, email, codigo, day, fecha, time});
+      if (error) {
+        console.error(error);
+        return;
+      }
 
-  if (res === "OK"){
-    alert("Reserva realizada con éxito.");
-    await renderCalendarA();
-  }
-  else if (res === "FULL"){
-    alert("Ese horario ya está lleno (máx: 3).");
-  }
-  else if (res === "DUP"){
-    alert("Ya tienes una reserva en ese horario.");
-  }
-  else{
-    alert("Hubo un error inesperado.");
-  }
-};
+      data.forEach(evt => {
+        const dateObj = new Date(evt.created_at);
+        const day = dateObj.getDate();
+        const cell = document.getElementById("day-" + day);
 
-// Actualizar calendario al cambiar fecha
-q("fechaA").onchange = renderCalendarA;
+        if (cell) {
+          cell.querySelector(".events").innerHTML += `
+            <span class="event">${evt.message}</span>`;
+        }
+      });
+    }
 
-// Render inicial
-q("fechaA").value = new Date().toISOString().slice(0,10);
-renderCalendarA();
+    // Agregar evento
+    async function addEvent() {
+      const date = document.getElementById("dateInput").value;
+      const message = document.getElementById("messageInput").value;
 
-</script>
+      if (!date || !message) {
+        alert("Completa todos los campos");
+        return;
+      }
+
+      const { data, error } = await supabase.from("chats").insert([
+        { 
+          user_id: supabase.auth.getSession().data.session?.user?.id,
+          message: message,
+          created_at: date 
+        }
+      ]);
+
+      if (error) {
+        alert("Error guardando: " + error.message);
+        return;
+      }
+
+      alert("Evento agregado");
+      generateCalendar();
+    }
+
+    generateCalendar();
+  </script>
+
 </body>
 </html>
