@@ -112,6 +112,7 @@
       const { data, error } = await db
         .from('reservas')
         .select('*')
+        .eq('week_id', currentMonday.toISOString().slice(0,10))
         .order('created_at', {ascending:true});
 
       if (error) { console.error(error); return {}; }
@@ -130,13 +131,14 @@
     }
 
     // -------- Guardar reserva vía RPC ----------
-    async function saveReserveRPC({name, email, codigo, day, time}){
+    async function saveReserveRPC({name, email, codigo, day, time, week_id}){
       const { data, error } = await db.rpc('reserve_slot', {
         p_name: name,
         p_email: email,
         p_codigo: codigo,
         p_day: day,
-        p_time: time
+        p_time: time,
+        p_week_id: week_id
       });
       return { data, error };
     }
@@ -234,7 +236,7 @@
         msg.style.color='black';
         msg.innerHTML='Guardando reserva...';
 
-        const res = await saveReserveRPC({name,email,codigo,day,time});
+        const res = await saveReserveRPC({name,email,codigo,day,time,week_id: currentMonday.toISOString().slice(0,10)});
         if (res.error) {
           console.error(res.error);
           msg.style.color='red';
