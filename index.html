@@ -26,6 +26,10 @@
         <input id="codigoA" type="text" required style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px;">
       </label><br><br> 
 
+      <label>Grupo
+        <input id="grupoA" type="text" required style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px;">
+      </label><br><br> 
+            
       <label>Día
         <select id="dayA" style="width:100%;padding:8px;margin-top:6px;border:1px solid #ddd;border-radius:6px;"></select>
       </label><br><br>
@@ -125,17 +129,19 @@
           name: r.name,
           email: r.email,
           codigo: r.codigo
+          grupo: r.grupo
         });
       });
       return grouped;
     }
 
     // -------- Guardar reserva vía RPC ----------
-    async function saveReserveRPC({name, email, codigo, day, time, week_id}){
+    async function saveReserveRPC({name, email, codigo, grupo, day, time, week_id}){
       const { data, error } = await db.rpc('reserve_slot', {
         p_name: name,
         p_email: email,
         p_codigo: codigo,
+        p_grupo: grupo,
         p_day: day,
         p_time: time,
         p_week_id: week_id
@@ -189,7 +195,7 @@
           if (list.length === 0)
             html += `<div style='font-size:12px;'>Disponible</div>`;
           else
-            html += `<div style='font-size:12px;'>${list.map(r => r.name + " ("+r.codigo+")").join('<br>')}</div>`;
+            html += `<div style='font-size:12px;'>${list.map(r => r.name + " ("+r.codigo+")" +" ("+r.grupo+")").join('<br>')}</div>`;
 
           html += `</td>`;
         }
@@ -223,6 +229,7 @@
         const name = q('nameA').value.trim();
         const email = q('emailA').value.trim();
         const codigo = q('codigoA').value.trim();
+        const grupo = q('grupoA').value.trim();
         const day = q('dayA').value;
         const time = q('timeA').value;
         const msg = q('msgA');
@@ -236,7 +243,7 @@
         msg.style.color='black';
         msg.innerHTML='Guardando reserva...';
 
-        const res = await saveReserveRPC({name,email,codigo,day,time,week_id: currentMonday.toISOString().slice(0,10)});
+        const res = await saveReserveRPC({name,email,codigo,grupo,day,time,week_id: currentMonday.toISOString().slice(0,10)});
         if (res.error) {
           console.error(res.error);
           msg.style.color='red';
