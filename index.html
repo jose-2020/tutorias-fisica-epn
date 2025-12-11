@@ -182,7 +182,12 @@
           const full = list.length >= 3;
           const bg = full ? "#f7c5c5" : "#c8f7c5";
 
-          const isPast = date < getMonday(new Date());
+          //const isPast = date < getMonday(new Date());
+          const now = new Date();
+          const isPast =
+            date.toDateString() < now.toDateString() ||
+            (date.toDateString() === now.toDateString() && t <= now.toTimeString().slice(0,5));
+
 
           html += `<td data-k='${key}'
                      style='border:1px solid #eee; padding:6px;
