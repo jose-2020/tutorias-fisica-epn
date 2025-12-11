@@ -184,9 +184,18 @@
 
           //const isPast = date < getMonday(new Date());
           const now = new Date();
-          const isPast =
-            date.toDateString() < now.toDateString() ||
-            (date.toDateString() === now.toDateString() && t <= now.toTimeString().slice(0,5));
+          const isToday = date.toDateString() === now.toDateString();
+
+          let isPast = false;
+
+          // Bloquear días anteriores a hoy
+          if (date < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+            isPast = true;
+          }
+          // Si es hoy, bloquear horas pasadas
+          else if (isToday && t <= now.toTimeString().slice(0, 5)) {
+            isPast = true;
+          }
 
 
           html += `<td data-k='${key}'
