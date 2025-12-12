@@ -113,11 +113,34 @@
     };
 
     // -------- Cargar reservas ----------
+    //async function loadA(){
+      //const { data, error } = await db
+        //.from('reservas')
+        //.select('*')
+        //.eq('week_id', currentMonday.toISOString().slice(0,10))
+        //.order('created_at', {ascending:true});
+
+      //if (error) { console.error(error); return {}; }
+
+      //let grouped = {};
+      //data.forEach(r => {
+        //const key = `${r.day}|${r.time}`;
+        //if (!grouped[key]) grouped[key] = [];
+        //grouped[key].push({
+          //name: r.name,
+          //email: r.email,
+          //codigo: r.codigo
+        //});
+      //});
+      //return grouped;
+    //}
+
     async function loadA(){
       const { data, error } = await db
         .from('reservas')
         .select('*')
-        .eq('week_id', currentMonday.toISOString().slice(0,10))
+        .gte('day_date', currentMonday.toISOString().slice(0,10))        // >= lunes
+        .lte('day_date', addDays(currentMonday,4).toISOString().slice(0,10)) // <= viernes
         .order('created_at', {ascending:true});
 
       if (error) { console.error(error); return {}; }
@@ -132,8 +155,11 @@
           codigo: r.codigo
         });
       });
+
       return grouped;
     }
+
+    
 
     // -------- Guardar reserva vía RPC ----------
     async function saveReserveRPC({name, email, codigo, grupo, day, time, week_id}){
